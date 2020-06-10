@@ -1,5 +1,8 @@
 import requests
 
+from abc import ABC, abstractmethod
+from idoit_api.const import CATEGORY_CONST_MAPPING
+
 
 class API(object):
     def __init__(self, url=None, key=None, username=None, password=None):
@@ -94,6 +97,75 @@ class API(object):
                 raw_code=error_code
             )
         return response['result']
+
+
+class RestObject(ABC):
+
+    def __init__(self, data):
+        self._raw_data = data
+        # populate attributes from json dict
+        self.populate()
+
+        super().__init__()
+
+    def populate(self, data=None):
+        """Set object values from data dict
+
+        :param data: dictionary of json data from API
+        :type data: dict
+        """
+        data = data or self._raw_data
+
+        if not data:
+            raise AttributeError('cannot set attributes, param data and attribute self._raw_data were empty ')
+
+        for k, v in data.items():
+            self.__dict__[k] = v
+        self._populate_custom()
+
+    @abstractmethod
+    def _populate_custom(self, data=None):
+        """Implement this method in inherited class, to add object specific attributes"""
+        pass
+
+
+class CMDBDocument(RestObject):
+
+    CATEGORY_MAP = CATEGORY_CONST_MAPPING
+
+    def populate(self, data=None):
+        """Set object values from data dict
+
+        :param data: dictionary of json data from API
+        :type data: dict
+        """
+        data = data or self._raw_data
+
+        if not data:
+            raise AttributeError('cannot set attributes, param data and attribute self._raw_data were empty ')
+
+        for k, v in data.items():
+            if k in self.CATEGORY_MAP:
+                k = self.CATEGORY_MAP.get(k)
+            self.__dict__[k] = v
+        self._populate_custom()
+
+    def _populate_custom(self, data=None):
+        pass
+
+
+class CMDBSoftwareAssignment(CMDBDocument):
+    pass
+
+
+class CMDBRelation(CMDBDocument):
+    """Represents a relation from the CMDB"""
+    pass
+
+
+class CMDBCustomType(CMDBDocument):
+    """Represents a custom object from the CMDB"""
+    pass
 
 
 class BaseRequest(object):
