@@ -1,11 +1,12 @@
 #!/usr/bin/env python
 
-"""Tests for `idoit_api` package."""
+"""Tests for `idoit.cli` module."""
 
 import pytest
 
 from click.testing import CliRunner
 from idoit_api import cli
+
 
 def test_command_line_interface():
     """Test the CLI."""
