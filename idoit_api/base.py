@@ -1,4 +1,5 @@
 import requests
+import logging
 
 from abc import ABC, abstractmethod
 from idoit_api.const import CATEGORY_CONST_MAPPING
