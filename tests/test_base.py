@@ -68,6 +68,10 @@ class TestCMDBCategoryRequest:
             d = simple_param_dict.copy()
             del d['objID']
             r.create(status="C__RECORD_STATUS__DELETED", **d)
+        with pytest.raises(InvalidParams, match=r".* mutually exclusive required parameters .*"):
+            d = simple_param_dict.copy()
+            del d['category']
+            r.create(status="C__RECORD_STATUS__DELETED", **d)
 
         with requests_mock.Mocker() as m:
             result = {'entry': 5419, 'message': 'Category entry successfully saved', 'success': True}

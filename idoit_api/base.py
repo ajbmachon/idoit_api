@@ -127,9 +127,9 @@ class BaseRequest(object):
     ENDPOINT = ""
 
     REQUIRED_PARAMS = {
-        'apikey': True,
         'objID': ('create', 'read', 'update', 'delete')
     }
+    # Keys need to be tuples here and only be filles if there are mutually exclusive but required parameters
     REQUIRED_INTERCHANGEABLE_PARAMS = {}
     OPTIONAL_PARAMS = {}
 
@@ -147,11 +147,10 @@ class BaseRequest(object):
 
     def _validate_request(self, method, **kwargs):
         if kwargs is None:
-            raise InvalidParams("Please specify some parameters for the request")
+            raise InvalidParams(message="Please specify some parameters for the request")
         if not isinstance(kwargs, dict):
-            raise InvalidParams("Parameters for the API call need to be a dictionary")
+            raise InvalidParams(message="Parameters for the API call need to be a dictionary")
 
-        # TODO also check required interchangeable params!!!!
         for param, rules in self.REQUIRED_PARAMS.items():
             if isinstance(rules, tuple):
                 # check if rule is applicable for this method
@@ -159,21 +158,39 @@ class BaseRequest(object):
                     if method.__name__ is not method_name:
                         continue
                     if param not in kwargs:
-                        raise InvalidParams("Required parameter: {} is missing!".format(param))
+                        raise InvalidParams(message="Required parameter: {} is missing!".format(param))
             # rule is applicable to all API methods
             elif rules is True:
                 if param not in kwargs:
-                    raise InvalidParams("Required parameter: {} is missing!".format(param))
+                    raise InvalidParams(message="Required parameter: {} is missing!".format(param))
             else:
                 raise AttributeError("Your validation dictionary is malformed, values need to be a tuple or True")
+            # check if none of mutually exclusive, but required params is present
+            for params, rs in self.REQUIRED_INTERCHANGEABLE_PARAMS.items():
+                if isinstance(rs, tuple):
+                    for method_name in rs:
+                        if method.__name__ is not method_name:
+                            continue
+
+                        found_key = False
+                        for key in params:
+                            if key in kwargs:
+                                found_key = True
+                        if not found_key:
+                            raise InvalidParams(
+                                message="None of the mutually exclusive required parameters were passed: ".format(params)
+                            )
 
         return method(**kwargs)
 
     def _build_request_body(self, **kwargs):
         d = {}
         for k, v in kwargs.items():
-            if k in self.REQUIRED_PARAMS or k in self.REQUIRED_INTERCHANGEABLE_PARAMS or k in self.OPTIONAL_PARAMS:
+            if k in self.REQUIRED_PARAMS or k in self.OPTIONAL_PARAMS:
                 d[k] = v
+            for keys in self.REQUIRED_INTERCHANGEABLE_PARAMS.keys():
+                if k in keys:
+                    d[k] = v
         return d
 
     def create(self, **kwargs):
@@ -235,7 +252,7 @@ class CMDBCategoryRequest(BaseRequest):
 
     REQUIRED_PARAMS = {}
     REQUIRED_INTERCHANGEABLE_PARAMS = {
-        ('category', 'catg_id', 'cats_id'): ('read', 'update')
+        ('category', 'catg_id', 'cats_id'): ('create', 'read', 'update')
     }
     OPTIONAL_PARAMS = {
         'status': ('read', 'update')

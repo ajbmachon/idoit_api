@@ -9,10 +9,12 @@ class JSONRPC(APIException):
     message = ""
     meaning = ""
 
-    def __init__(self, data=None, raw_code=None):
+    def __init__(self, data=None, raw_code=None, message=None):
         APIException.__init__(self)
         self.data = data
         self.raw_code = raw_code
+        if message:
+            self.message = "{} {}".format(self.message, message)
 
     def __str__(self):
         return "{message}({code}): {meaning}".format(
