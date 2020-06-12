@@ -48,6 +48,12 @@ class MethodNotFound(JSONRPC):
     meaning = "The method does not exist / is not available."
 
 
+class AuthenticationError(JSONRPC):
+    code = -32604
+    message = "Authentication error"
+    meaning = "There was a problem with Authenticating your account"
+
+
 class UnknownError(JSONRPC):
     code = None
     message = "Unknown error"

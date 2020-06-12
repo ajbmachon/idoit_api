@@ -1,10 +1,10 @@
 import requests
-import logging
+import os
 
 from abc import ABC, abstractmethod
 from idoit_api.const import CATEGORY_CONST_MAPPING
 from idoit_api.mixins import LoggingMixin
-from idoit_api.exceptions import InvalidParams, InternalError, MethodNotFound, UnknownError
+from idoit_api.exceptions import InvalidParams, InternalError, MethodNotFound, UnknownError, AuthenticationError
 from functools import partial
 
 # TODO refactor this file. API and subclasses should be used like factory methods, that create objects:
@@ -38,6 +38,10 @@ class API(LoggingMixin):
         :param str username: Overrides the current username value
         :param str password: Overrides the current password value
         """
+        if os.environ.get('CMDB_SESSION_ID'):
+            self._session_id = os.environ.get('CMDB_SESSION_ID')
+            return
+
         if username:
             self.username = username
         if password:
@@ -53,10 +57,12 @@ class API(LoggingMixin):
             headers=headers
         )
         self._session_id = result["session-id"]
+        os.environ['CMDB_SESSION_ID'] = result["session-id"]
 
     def logout(self):
         self.request("idoit.logout")
         self._session_id = None
+        del os.environ['CMDB_SESSION_ID']
 
     def request(self, method, params=None, headers=None):
         """
@@ -94,12 +100,21 @@ class API(LoggingMixin):
         if "error" in response:
             error = response["error"]
             error_code = error["code"]
+
             for exception_class in [InvalidParams, InternalError, MethodNotFound]:
                 if exception_class.code == error_code:
                     raise exception_class(
                         data=error["data"],
                         raw_code=error_code
                     )
+            if error_code == AuthenticationError.code:
+                self._session_id = None
+                del os.environ['CMDB_SESSION_ID']
+                raise AuthenticationError(
+                    data=error["data"],
+                    raw_code=error_code
+                )
+
             raise UnknownError(
                 data=error["data"],
                 raw_code=error_code
