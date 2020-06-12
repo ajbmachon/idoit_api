@@ -12,8 +12,55 @@ from functools import partial
 
 
 class API(LoggingMixin):
+    """Provides functionality for authentication and genereic requests against the idoit JSON-RPC API"""
+
+    @property
+    def key(self):
+        return self._key or os.environ.get('CMDB_API_KEY')
+
+    @key.setter
+    def key(self, value):
+        self._key = value
+        os.environ['CMDB_API_KEY'] = value
+
+    @property
+    def session_id(self):
+        return self._session_id or os.environ.get('CMDB_SESSION_ID')
+
+    @session_id.setter
+    def session_id(self, value):
+        self._session_id = value
+        os.environ['CMDB_SESSION_ID'] = value
+
+    @property
+    def url(self):
+        return self._url or os.environ.get("CMDB_URL")
+
+    @url.setter
+    def url(self, value):
+        self._url = value
+        os.environ['CMDB_URL'] = value
+
+    @property
+    def username(self):
+        return self._username or os.environ.get('CMDB_USER')
+
+    @username.setter
+    def username(self, value):
+        self._username = value
+        os.environ['CMDB_USER'] = value
+
+    @property
+    def password(self):
+        return self._password or os.environ.get('CMDB_PASS')
+
+    @password.setter
+    def password(self, value):
+        self._password = value
+        os.environ['CMDB_PASS'] = value
+
     def __init__(self, url=None, key=None, username=None, password=None, *args, **kwargs):
-        """Base class for connecting to the JSON-RPC API
+        """Setup the attributes needed for requests and logging
 
         :param url: URL to access the JSON-RPC API
         :type url: str
@@ -24,56 +71,78 @@ class API(LoggingMixin):
         :param password: Password
         :type password: str
         """
-        self._session_id = None
-        self.key = key
-        self.username = username
-        self.password = password
-        self.url = url
+
+        # try to get credentials from environment if none are passed here
+        self.key = key or self.key
+        self.session_id = os.environ.get('CMDB_SESSION_ID', None)
+        self.url = url or self.url
+        self.username = username or self.url
+        self.password = password or self.url
 
         super().__init__(*args, **kwargs)
 
     def login(self, username=None, password=None):
-        """
-        Perform login
-        :param str username: Overrides the current username value
-        :param str password: Overrides the current password value
-        """
-        if os.environ.get('CMDB_SESSION_ID'):
-            self._session_id = os.environ.get('CMDB_SESSION_ID')
-            return
+        """Obtains session ID from the CMDB if none is set, by logging in with username and password
 
-        if username:
-            self.username = username
-        if password:
-            self.password = password
+        :param username: Overrides the current username value
+        :type username: str
+        :param password: Overrides the current password value
+        :type password: str
+        """
+
+        if self._session_id or os.environ.get("CMDB_SESSION_ID"):
+            return True
+
+        user = username or self.username
+        pw = password or self.password
+
+        if not user:
+            raise AuthenticationError(
+                message=" 'idoit.login' failed, no username was set and env var 'CMDB_USER' is empty!"
+            )
+        if not pw:
+            raise AuthenticationError(
+                message=" idoit.login' failed, no password was set and env var 'CMDB_PASS' is empty!"
+            )
 
         headers = {
-            "X-RPC-Auth-Username": self.username,
-            "X-RPC-Auth-Password": self.password
+            "X-RPC-Auth-Username": user,
+            "X-RPC-Auth-Password": pw
         }
 
         result = self.request(
             "idoit.login",
             headers=headers
         )
-        self._session_id = result["session-id"]
-        os.environ['CMDB_SESSION_ID'] = result["session-id"]
+        self.session_id = result["session-id"]
+        return True
 
     def logout(self):
         self.request("idoit.logout")
-        self._session_id = None
-        del os.environ['CMDB_SESSION_ID']
+        self.session_id = None
+        return True
 
-    def request(self, method, params=None, headers=None):
-        """
-        :param str method:
-        :param dict params:
-        :param dict headers:
-        :return:
+    def request(self, method, params=None, headers=None, url=None):
+        """Sends a POST request with JSON body to specified URL
+
+        :param method: API method / endpoint to target
+        :type method: str
+        :param params: Extra key: value attributes for the JSON body
+        :type params: dict
+        :param headers: Extra headers to be sent with the request
+        :type headers: dict
+        :param url: URL to access the JSON-RPC API
+        :type url: str
+        :raises: AuthenticationError, InvalidParams, InternalError, MethodNotFound, UnknownError
+        :return: dictionary with results from CMDB JSON API
+        :rtype: dict
         """
         req_headers = {'content-type': 'application/json'}
-        if self._session_id is not None:
-            req_headers["X-RPC-Auth-Session"] = self._session_id
+
+        if self.session_id is None:
+            self.login()
+
+        req_headers["X-RPC-Auth-Session"] = self._session_id
 
         if isinstance(headers, dict):
             req_headers.update(headers)
@@ -92,7 +161,7 @@ class API(LoggingMixin):
         }
 
         response = requests.post(
-            self.url,
+            url or self.url,
             json=data,
             headers=req_headers
         ).json()
@@ -146,6 +215,16 @@ class BaseRequest(object):
         return object.__getattribute__(self, item)
 
     def _validate_request(self, method, **kwargs):
+        """ Validates an API request body, based on constants defined in the class
+
+        if required parameters are missing it throws the appropriate exception
+
+        :param method: API CRUD class method to be validated
+        :type method: callable
+        :param kwargs: Parameters for method to be validated
+        :raise: InvalidParams, AttributeError
+        :return: passed method
+        """
         if kwargs is None:
             raise InvalidParams(message="Please specify some parameters for the request")
         if not isinstance(kwargs, dict):
@@ -165,6 +244,7 @@ class BaseRequest(object):
                     raise InvalidParams(message="Required parameter: {} is missing!".format(param))
             else:
                 raise AttributeError("Your validation dictionary is malformed, values need to be a tuple or True")
+
             # check if none of mutually exclusive, but required params is present
             for params, rs in self.REQUIRED_INTERCHANGEABLE_PARAMS.items():
                 if isinstance(rs, tuple):
@@ -191,6 +271,7 @@ class BaseRequest(object):
             for keys in self.REQUIRED_INTERCHANGEABLE_PARAMS.keys():
                 if k in keys:
                     d[k] = v
+                    continue
         return d
 
     def create(self, **kwargs):
