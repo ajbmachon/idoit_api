@@ -7,16 +7,13 @@ from idoit_api.mixins import LoggingMixin
 from idoit_api.exceptions import InvalidParams, InternalError, MethodNotFound, UnknownError, AuthenticationError
 from functools import partial
 
-# TODO refactor this file. API and subclasses should be used like factory methods, that create objects:
-#   so instead of an active record pattern we have more of a repository pattern
-
 
 class API(LoggingMixin):
-    """Provides functionality for authentication and genereic requests against the idoit JSON-RPC API"""
+    """Provides functionality for authentication and generic requests against the idoit JSON-RPC API"""
 
     @property
     def key(self):
-        return self._key or os.environ.get('CMDB_API_KEY')
+        return self._key or os.environ.get('CMDB_API_KEY', "")
 
     @key.setter
     def key(self, value):
@@ -25,7 +22,7 @@ class API(LoggingMixin):
 
     @property
     def session_id(self):
-        return self._session_id or os.environ.get('CMDB_SESSION_ID')
+        return self._session_id or os.environ.get('CMDB_SESSION_ID', "")
 
     @session_id.setter
     def session_id(self, value):
@@ -34,7 +31,7 @@ class API(LoggingMixin):
 
     @property
     def url(self):
-        return self._url or os.environ.get("CMDB_URL")
+        return self._url or os.environ.get("CMDB_URL", "")
 
     @url.setter
     def url(self, value):
@@ -43,7 +40,7 @@ class API(LoggingMixin):
 
     @property
     def username(self):
-        return self._username or os.environ.get('CMDB_USER')
+        return self._username or os.environ.get('CMDB_USER', "")
 
     @username.setter
     def username(self, value):
@@ -52,7 +49,7 @@ class API(LoggingMixin):
 
     @property
     def password(self):
-        return self._password or os.environ.get('CMDB_PASS')
+        return self._password or os.environ.get('CMDB_PASS', "")
 
     @password.setter
     def password(self, value):
@@ -72,9 +69,15 @@ class API(LoggingMixin):
         :type password: str
         """
 
+        self._key = None
+        self._session_id = None
+        self._url = None
+        self._username = None
+        self._password = None
+
         # try to get credentials from environment if none are passed here
         self.key = key or self.key
-        self.session_id = os.environ.get('CMDB_SESSION_ID', None)
+        self.session_id = os.environ.get('CMDB_SESSION_ID', "")
         self.url = url or self.url
         self.username = username or self.url
         self.password = password or self.url
