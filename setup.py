@@ -14,7 +14,7 @@ requirements = ['Click>=7.0', 'requests>=2.23.0']
 
 setup_requirements = ['pytest-runner', ]
 
-test_requirements = ['pytest>=3', ]
+test_requirements = ['pytest>=3', 'pytest-mock>=3.1.1', 'requests-mock>=1.8.0']
 
 setup(
     author="Andre Machon",
