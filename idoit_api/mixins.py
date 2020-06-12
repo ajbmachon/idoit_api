@@ -1,7 +1,8 @@
 import logging
 
 from functools import wraps
-from idoit_api.const import LOG_LEVEL_DEBUG, LOG_LEVEL_INFO, LOG_LEVEL_WARNING, LOG_LEVEL_ERROR
+from idoit_api.const import LOG_LEVEL_DEBUG, LOG_LEVEL_INFO, LOG_LEVEL_WARNING, LOG_LEVEL_ERROR, LOG_PATH
+
 
 class PermissionException(Exception):
     pass
@@ -99,9 +100,10 @@ class PermissionMixin:
             def inner(class_instance, *args, **kwargs):
                 if int(class_instance.PERMISSION_LEVEL) >= int(required_permission_lvl):
                     return method(class_instance, *args, **kwargs)
-                elif dry_run_allowed and int(class_instance.PERMISSION_LEVEL) == PermissionMixin.DRY_RUN:
-                    print('dry running method: ', method)
-                    return method(class_instance, *args, **kwargs)
+                # TODO write dry_run decorator to re enable this functionality
+                # elif dry_run_allowed and int(class_instance.PERMISSION_LEVEL) == PermissionMixin.DRY_RUN:
+                #     print('dry running method: ', method)
+                #     return method(class_instance, *args, **kwargs)
                 else:
                     raise PermissionException(
                         'Permission level was not high enough to execute this function: {}.\n'
@@ -119,18 +121,20 @@ class PermissionMixin:
 class LoggingMixin(object):
     """Provides logging to all classes inheriting from this one"""
 
-    def __init__(self, log_lvl=LOG_LEVEL_INFO, log_name="idoit_api.log"):
+    def __init__(self, log_level=LOG_LEVEL_INFO,
+                 log_path='{}/{}'.format(LOG_PATH, 'main.log')):
         """Setup logging for class
 
-        :param log_lvl: Set the log level
-        :type log_lvl: int
+        :param log_level: Set the log level
+        :type log_level: int
         """
-        self.log = logging.getLogger('{}.{}'.format(self.__module__, self.__class__.__name__))
-        self.log_lvl = log_lvl
-        self.log.setLevel(log_lvl)
 
-        self._fh_log = logging.FileHandler(log_name)
-        self._fh_log.setLevel(log_lvl)
+        self.log = logging.getLogger('{}.{}'.format(self.__module__, self.__class__.__name__))
+        self.log_lvl = log_level
+        self.log.setLevel(log_level)
+
+        self._fh_log = logging.FileHandler(log_path)
+        self._fh_log.setLevel(log_level)
         self._ch_log = logging.StreamHandler()
         self._ch_log.setLevel(logging.ERROR)
 

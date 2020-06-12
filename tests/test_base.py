@@ -5,6 +5,7 @@ import requests_mock
 from idoit_api.base import API, CMDBDocument, BaseRequest, IdoitRequest, CMDBCategoryRequest
 from idoit_api.const import CATEGORY_CONST_MAPPING
 from idoit_api.exceptions import InvalidParams
+from idoit_api.utils import set_env_credentials, del_env_credentials
 
 
 @pytest.fixture
@@ -31,30 +32,10 @@ def simple_param_dict():
 class EnvCredentials:
 
     def __enter__(self):
-        self.set_env_credentials()
+        set_env_credentials("not_so_secret_account_name", "my_super_secret_password","cmdb_key_also_super_secret","https://cmdb.example.de/src/jsonrpc.php",)
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.del_env_credentials()
-
-    @staticmethod
-    def set_env_credentials():
-        os.environ['CMDB_USER'] = "not_so_secret_account_name"
-        os.environ['CMDB_PASS'] = "my_super_secret_password"
-        os.environ['CMDB_API_KEY'] = "cmdb_key_also_super_secret"
-        os.environ['CMDB_URL'] = "https://cmdb.example.de/src/jsonrpc.php"
-
-    @staticmethod
-    def del_env_credentials():
-        if os.environ.get('CMDB_USER'):
-            del os.environ['CMDB_USER']
-        if os.environ.get('CMDB_PASS'):
-            del os.environ['CMDB_PASS']
-        if os.environ.get('CMDB_API_KEY'):
-            del os.environ['CMDB_API_KEY']
-        if os.environ.get('CMDB_URL'):
-            del os.environ['CMDB_URL']
-        if os.environ.get('CMDB_SESSION_ID'):
-            del os.environ['CMDB_SESSION_ID']
+        del_env_credentials()
 
     @staticmethod
     def set_session_id():
@@ -71,9 +52,6 @@ class TestCMDBDocument:
 
 
 class TestAPI:
-    """
-    Class Docstring
-    """
 
     def test_init(self):
         a = API(url="https://cmdb.example.de", log_lvl=10)
@@ -86,6 +64,15 @@ class TestAPI:
             assert a._password == os.environ['CMDB_PASS']
             assert a._key == os.environ['CMDB_API_KEY']
             assert a._url == os.environ['CMDB_URL']
+
+    def test_login(self):
+        pass
+
+    def test_logout(self):
+        pass
+
+    def test_request(self):
+        pass
 
 
 class TestCMDBCategoryRequest:

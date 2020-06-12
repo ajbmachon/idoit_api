@@ -3,7 +3,7 @@ import os
 
 from abc import ABC, abstractmethod
 from idoit_api.const import CATEGORY_CONST_MAPPING
-from idoit_api.mixins import LoggingMixin
+from idoit_api.mixins import LoggingMixin, PermissionMixin
 from idoit_api.exceptions import InvalidParams, InternalError, MethodNotFound, UnknownError, AuthenticationError
 from functools import partial
 
@@ -194,7 +194,7 @@ class API(LoggingMixin):
         return response['result']
 
 
-class BaseRequest(object):
+class BaseRequest(ABC):
     # CMDB API Endpoint should be entered here, like: cmdb.category
     ENDPOINT = ""
 
@@ -205,11 +205,9 @@ class BaseRequest(object):
     REQUIRED_INTERCHANGEABLE_PARAMS = {}
     OPTIONAL_PARAMS = {}
 
-    def __init__(self, api=None, api_params=None):
+    def __init__(self, api=None, *args, **kwargs):
         if api is None:
-            if api_params is None:
-                api_params = {}
-            api = API(**api_params)
+            api = API(*args, **kwargs)
         self._api = api
 
     def __getattribute__(self, item):
@@ -277,6 +275,7 @@ class BaseRequest(object):
                     continue
         return d
 
+    @PermissionMixin.check_permission_level(PermissionMixin.PERMISSION_LEVEL_3, ) # TODO set dry_run_allowed=True after writing  dry run decorator
     def create(self, **kwargs):
         print('received the following kwargs: ', kwargs)
         return self._api.request(
@@ -284,18 +283,21 @@ class BaseRequest(object):
             params=self._build_request_body(**kwargs)
         )
 
+    @PermissionMixin.check_permission_level(PermissionMixin.PERMISSION_LEVEL_1, )
     def read(self, **kwargs):
         return self._api.request(
             method=self.ENDPOINT + ".read",
             params=self._build_request_body(**kwargs)
         )
 
+    @PermissionMixin.check_permission_level(PermissionMixin.PERMISSION_LEVEL_4, )
     def update(self, **kwargs):
         return self._api.request(
             method=self.ENDPOINT + ".update",
             params=self._build_request_body(**kwargs)
         )
 
+    @PermissionMixin.check_permission_level(PermissionMixin.PERMISSION_LEVEL_5, )
     def delete(self, **kwargs):
         return self._api.request(
             method=self.ENDPOINT + ".delete",

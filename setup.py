@@ -3,6 +3,7 @@
 """The setup script."""
 
 from setuptools import setup, find_packages
+from idoit_api.__about__ import __version__
 
 with open('README.rst') as readme_file:
     readme = readme_file.read()
@@ -49,6 +50,6 @@ setup(
     test_suite='tests',
     tests_require=test_requirements,
     url='https://github.com/ajbmachon/idoit_api',
-    version='0.1.0',
+    version=__version__,
     zip_safe=False,
 )

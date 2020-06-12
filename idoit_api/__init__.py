@@ -1,7 +1,6 @@
-"""Top-level package for idoit-api."""
+import os
+import os.path as osp
+from idoit_api.const import LOG_PATH
 
-__author__ = """Andre Machon"""
-__email__ = 'ajbmachon2@gmail.com'
-__version__ = '0.1.0'
-
-
+if not osp.exists(LOG_PATH):
+    os.makedirs(LOG_PATH)
