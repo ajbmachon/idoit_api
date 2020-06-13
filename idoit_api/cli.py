@@ -25,9 +25,9 @@ def main(ctx, permission_level, log_level, debug):
     click.echo('Version: {}'.format(__version__))
 
     ctx.ensure_object(dict)
-    ctx['permission_level'] = permission_level
-    ctx['log_level'] = log_level
-    ctx['debug'] = debug
+    ctx.obj['permission_level'] = permission_level
+    ctx.obj['log_level'] = log_level
+    ctx.obj['debug'] = debug
 
     return 0
 
@@ -53,9 +53,9 @@ def reset_credentials():
 @main.command()
 @click.argument('query', type=str)
 @click.option('-m', '--mode', default='normal', type=click.Choice(['normal', 'deep', 'auto-deep']))
-@click.pass_context
-def search(ctx, query, mode):
-    ep = IdoitEndpoint(**ctx)
+@click.pass_obj
+def search(obj, query, mode):
+    ep = IdoitEndpoint(**obj)
     response = ep.search(query, mode)
     click.echo(response)
 
