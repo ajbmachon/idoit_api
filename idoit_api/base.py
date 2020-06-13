@@ -93,7 +93,7 @@ class API(LoggingMixin):
         :type password: str
         """
 
-        if self._session_id or os.environ.get("CMDB_SESSION_ID"):
+        if self.session_id:
             return True
 
         user = username or self.username
@@ -141,8 +141,7 @@ class API(LoggingMixin):
         """
         self.log.debug('parameters passed to request - method: %s, params: %s, headers: %s', method, params, headers)
 
-        if not self.session_id:
-            self.login()
+        self.log.debug('API attributes username: %s  key: %s, pw: %s', self.username, self.key, self.password)
 
         request_content = {
             "url": self.url,
@@ -186,7 +185,6 @@ class API(LoggingMixin):
 
         return results
 
-
     def build_request_body(self, method, params=None):
         if not isinstance(method, str):
             raise AttributeError("Invalid method passed to _build_request_body")
@@ -207,6 +205,10 @@ class API(LoggingMixin):
         h['content-type'] = 'application/json'
         if self.session_id:
             h["X-RPC-Auth-Session"] = self.session_id
+        else:
+            self.log.debug('AAAAAAAAA %s %s %s', self.username, self.password, self.__class__)
+            h["X-RPC-Auth-Username"] = self.username
+            h["X-RPC-Auth-Password"] = self.password
         return h
 
     def _evaluate_response(self, response):
@@ -235,7 +237,7 @@ class API(LoggingMixin):
         return response
 
 
-class BaseEndpoint(ABC, PermissionMixin):
+class BaseEndpoint(ABC, PermissionMixin, LoggingMixin):
     # CMDB API Endpoint should be entered here, like: cmdb.category
     ENDPOINT = ""
 
@@ -250,8 +252,12 @@ class BaseEndpoint(ABC, PermissionMixin):
     SORT_DESCENDING = 'DESC'
 
     def __init__(self, api=None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.log.debug('init of %s args: %s', self.__class__, args)
+        self.log.debug('init of %s kwargs: %s', self.__class__, kwargs)
         if api is None:
-            api = API(*args, **kwargs)
+            api = API(**kwargs)
         self._api = api
         self.PERMISSION_LEVEL = kwargs.get('permission_level', 1)
 

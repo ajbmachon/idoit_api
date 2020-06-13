@@ -22,8 +22,12 @@ def main(ctx, permission_level, log_level, debug, env_file):
 
     if env_file:
         parse_env_file_to_vars(env_file)
+        api = API()
+        api.login()
     elif not os.environ.get('CMDB_SESSION_ID'):
         cli_login_prompt()
+        api = API()
+        api.login()
 
     click.echo('Version: {}'.format(__version__))
 
@@ -44,7 +48,7 @@ def main(ctx, permission_level, log_level, debug, env_file):
 @click.option('-k', '--api-key', prompt=True, hide_input=True, envvar='CMDB_API_KEY')
 @click.pass_obj
 def login(obj, url, username, password, api_key):
-    api = API(url=url, key=api_key, username=username, password=password, **obj)
+    api = API(url=url, key=api_key, username=username, password=password, **obj.copy())
     if api.login():
         click.echo("Successfully authenticated with the API at {}".format(url))
 
@@ -59,6 +63,7 @@ def reset_credentials():
 @click.option('-m', '--mode', default='normal', type=click.Choice(['normal', 'deep', 'auto-deep']))
 @click.pass_obj
 def search(obj, query, mode):
+    print("OBJECT:: ", obj)
     ep = IdoitEndpoint(**obj)
     response = ep.search(query, mode)
     click.echo(response)

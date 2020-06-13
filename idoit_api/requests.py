@@ -1,5 +1,8 @@
+import os
+
 from idoit_api.base import BaseEndpoint, MultiResultEndpoint
 from idoit_api.const import NORMAL_SEARCH, DEEP_SEARCH, AUTO_DEPP_SEARCH
+
 
 class IdoitEndpoint(BaseEndpoint):
 
@@ -20,6 +23,8 @@ class IdoitEndpoint(BaseEndpoint):
         return self._api.request("idoit.version")
 
     def search(self, query, mode=NORMAL_SEARCH):
+        self.log.debug(' ENVENVENVNEV %s %s ', os.environ.get('CMDB_USER'), os.environ.get('CMDB_PASS'))
+        self.log.debug('IN IDOITENDPOINT %s %s %s', self._api.username, self._api.password, self.__class__)
         return self._api.request(
             "idoit.search",
             {"q": query, "mode": mode}
