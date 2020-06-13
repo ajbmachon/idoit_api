@@ -148,7 +148,8 @@ class API(LoggingMixin):
             "headers": self._build_request_headers(headers)
         }
 
-        self.log.debug('Request to be sent: ', request_content)
+        self.log.debug('Request to be sent: %s', request_content)
+        self.log.info('Request to be sent: %s', request_content)
 
         response = requests.post(
             **request_content
