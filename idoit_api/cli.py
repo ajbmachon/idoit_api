@@ -20,21 +20,23 @@ from idoit_api.utils import del_env_credentials, cli_login_prompt, parse_env_fil
 def main(ctx, permission_level, log_level, debug, env_file):
     """Console script for idoit_api"""
 
-    if env_file:
-        parse_env_file_to_vars(env_file)
-        api = API()
-        api.login()
-    elif not os.environ.get('CMDB_SESSION_ID'):
-        cli_login_prompt()
-        api = API()
-        api.login()
-
-    click.echo('Version: {}'.format(__version__))
-
     ctx.ensure_object(dict)
     ctx.obj['permission_level'] = permission_level
     ctx.obj['log_level'] = log_level
     ctx.obj['debug'] = debug
+
+    if env_file:
+        parse_env_file_to_vars(env_file)
+        api = API(**ctx.obj)
+        api.login()
+    elif not os.environ.get('CMDB_SESSION_ID'):
+        cli_login_prompt()
+        api = API(**ctx.obj)
+        api.login()
+
+    click.echo('Version: {}'.format(__version__))
+
+
 
     return 0
 
