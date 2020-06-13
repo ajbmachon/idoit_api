@@ -79,8 +79,8 @@ class API(LoggingMixin):
         self.key = key or self.key
         self.session_id = os.environ.get('CMDB_SESSION_ID', "")
         self.url = url or self.url
-        self.username = username or self.url
-        self.password = password or self.url
+        self.username = username or self.username
+        self.password = password or self.password
 
         super().__init__(*args, **kwargs)
 
