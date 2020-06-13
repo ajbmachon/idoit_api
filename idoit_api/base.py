@@ -125,7 +125,7 @@ class API(LoggingMixin):
         self.session_id = None
         return True
 
-    def request(self, method, params=None, headers=None, url=None):
+    def request(self, method, params=None, headers=None):
         """Sends a POST request with JSON body to specified URL
 
         :param method: API method / endpoint to target
@@ -134,41 +134,69 @@ class API(LoggingMixin):
         :type params: dict
         :param headers: Extra headers to be sent with the request
         :type headers: dict
-        :param url: URL to access the JSON-RPC API
-        :type url: str
         :raises: AuthenticationError, InvalidParams, InternalError, MethodNotFound, UnknownError
         :return: dictionary with results from CMDB JSON API
         :rtype: dict
         """
-        req_headers = {'content-type': 'application/json'}
 
-        if self.session_id is None:
-            self.login()
+        response = requests.post(
+            url=self.url,
+            json=self.build_request_body(method, params),
+            headers=self._build_request_headers(headers)
+        ).json()
 
-        req_headers["X-RPC-Auth-Session"] = self._session_id
+        response = self._evaluate_response(response)
+        return response['result']
 
-        if isinstance(headers, dict):
-            req_headers.update(headers)
+    def batch_request(self, request_dicts):
+        """Performs multiple requests to API at once
 
-        req_params = {
-            "apikey": self.key
-        }
-        if isinstance(params, dict):
-            req_params.update(params)
+        :param requests:
+        :return:
+        """
+        data = []
 
-        data = {
+        for rd in request_dicts:
+            if rd.get('method') and rd.get('params') and rd.get('apikey') and rd.get('jsonrpc') and rd.get('id'):
+                data.append(rd)
+
+        response = requests.post(url=self.url, json=data, headers=self._build_request_headers({}))
+        results = []
+        # TODO check if this is possible
+        for r in response.json():
+            try:
+                self._evaluate_response(r)
+                results.append(r.get('result'))
+            except (InvalidParams, InternalError, MethodNotFound, UnknownError, AuthenticationError) as err:
+                print(err)
+
+
+        return
+
+
+    def build_request_body(self, method, params=None):
+        if not isinstance(method, str):
+            raise AttributeError("Invalid method passed to _build_request_body")
+
+        params = params or {}
+        params["apikey"] = self.key
+        return {
             "method": method,
-            "params": req_params,
+            "params": params,
             "jsonrpc": "2.0",
+            # TODO count up from class parameter here self._id += 1
             "id": 0,
         }
 
-        response = requests.post(
-            url or self.url,
-            json=data,
-            headers=req_headers
-        ).json()
+    def _build_request_headers(self, headers=None):
+        if self.session_id is None:
+            self.login()
 
+        h = headers or {}
+        h['content-type'] = 'application/json'
+        h["X-RPC-Auth-Session"] = self._session_id
+
+    def _evaluate_response(self, response):
         if "error" in response:
             error = response["error"]
             error_code = error["code"]
@@ -191,10 +219,10 @@ class API(LoggingMixin):
                 data=error["data"],
                 raw_code=error_code
             )
-        return response['result']
+        return response
 
 
-class BaseRequest(ABC):
+class BaseEndpoint(ABC, PermissionMixin):
     # CMDB API Endpoint should be entered here, like: cmdb.category
     ENDPOINT = ""
 
@@ -205,10 +233,14 @@ class BaseRequest(ABC):
     REQUIRED_INTERCHANGEABLE_PARAMS = {}
     OPTIONAL_PARAMS = {}
 
+    SORT_ASCENDING = 'ASC'
+    SORT_DESCENDING = 'DESC'
+
     def __init__(self, api=None, *args, **kwargs):
         if api is None:
             api = API(*args, **kwargs)
         self._api = api
+        self.PERMISSION_LEVEL = kwargs.get('permission_level', 1)
 
     def __getattribute__(self, item):
         if item in ('create', 'read', 'update', 'delete'):
@@ -259,7 +291,8 @@ class BaseRequest(ABC):
                                 found_key = True
                         if not found_key:
                             raise InvalidParams(
-                                message="None of the mutually exclusive required parameters were passed: ".format(params)
+                                message="None of the mutually exclusive required parameters were passed: ".format(
+                                    params)
                             )
 
         return method(**kwargs)
@@ -275,7 +308,8 @@ class BaseRequest(ABC):
                     continue
         return d
 
-    @PermissionMixin.check_permission_level(PermissionMixin.PERMISSION_LEVEL_3, ) # TODO set dry_run_allowed=True after writing  dry run decorator
+    @PermissionMixin.check_permission_level(
+        PermissionMixin.PERMISSION_LEVEL_3, )  # TODO set dry_run_allowed=True after writing  dry run decorator
     def create(self, **kwargs):
         print('received the following kwargs: ', kwargs)
         return self._api.request(
@@ -305,50 +339,9 @@ class BaseRequest(ABC):
         )
 
 
-class IdoitRequest(BaseRequest):
-    @property
-    def version(self):
-        data = self.get_version()
-        return data.get("version")
-
-    @property
-    def version_type(self):
-        data = self.get_version()
-        return data.get("type")
-
-    def get_constants(self):
-        return self._api.request("idoit.constants")
-
-    def get_version(self):
-        return self._api.request("idoit.version")
-
-    def search(self, query):
-        return self._api.request(
-            "idoit.search",
-            {"q": query}
-        )
-
-
-class CMDBCategoryRequest(BaseRequest):
-    ENDPOINT = "cmdb.category"
-
-    STATUS_NORMAL = "C__RECORD_STATUS__NORMAL"
-    STATUS_ARCHIVED = "C__RECORD_STATUS__ARCHIVED"
-    STATUS_DELETED = "C__RECORD_STATUS__DELETED"
-
-    REQUIRED_PARAMS = {}
-    REQUIRED_INTERCHANGEABLE_PARAMS = {
-        ('category', 'catg_id', 'cats_id'): ('create', 'read', 'update')
-    }
-    OPTIONAL_PARAMS = {
-        'status': ('read', 'update')
-    }
-
-    def __init__(self, api=None, api_params=None, default_read_status=STATUS_NORMAL):
-        super(CMDBCategoryRequest, self).__init__(api=api, api_params=api_params)
-
-        self.REQUIRED_PARAMS.update(super().REQUIRED_PARAMS)
-        self.default_read_status = default_read_status
+class MultiResultEndpoint(BaseEndpoint):
+    # TODO implement!
+    pass
 
 
 class RestObject(LoggingMixin, ABC):
@@ -382,7 +375,6 @@ class RestObject(LoggingMixin, ABC):
 
 
 class CMDBDocument(RestObject):
-
     CATEGORY_MAP = CATEGORY_CONST_MAPPING
 
     def populate(self, data=None):
@@ -419,4 +411,3 @@ class CMDBRelation(CMDBDocument):
 class CMDBCustomType(CMDBDocument):
     """Represents a custom object from the CMDB"""
     pass
-

@@ -2,20 +2,36 @@
 import sys
 import click
 import os
+
 from idoit_api.const import LOG_LEVEL_INFO, LOG_LEVEL_WARNING, LOG_LEVEL_ERROR, LOG_LEVEL_DEBUG
 from idoit_api.__about__ import __version__
+from idoit_api.requests import IdoitEndpoint
 from idoit_api.base import API
+from idoit_api.utils import del_env_credentials, cli_login_prompt
+
 
 @click.group()
+@click.option('--debug', default=False)
 @click.option('-l', '--log-level', default=LOG_LEVEL_INFO, show_default=True)
 @click.option('-P', '--permission-level', default=1, show_default=True,
               help="Level of rights for API Operations. Higher level gives more permissions")
-def main(permission_level, log_level):
+@click.pass_context
+def main(ctx, permission_level, log_level, debug):
     """Console script for idoit_api"""
+
+    if not os.environ.get('CMDB_SESSION_ID'):
+        cli_login_prompt()
 
     click.echo('Version: {}'.format(__version__))
 
+    ctx.ensure_object(dict)
+    ctx['permission_level'] = permission_level
+    ctx['log_level'] = log_level
+    ctx['debug'] = debug
+
     return 0
+
+
 
 
 @main.command()
@@ -31,16 +47,18 @@ def login(url, username, password, api_key):
 
 @main.command()
 def reset_credentials():
-    if os.environ.get('CMDB_USER'):
-        del os.environ['CMDB_USER']
-    if os.environ.get('CMDB_PASS'):
-        del os.environ['CMDB_PASS']
-    if os.environ.get('CMDB_API_KEY'):
-        del os.environ['CMDB_API_KEY']
-    if os.environ.get('CMDB_URL'):
-        del os.environ['CMDB_URL']
-    if os.environ.get('CMDB_SESSION_ID'):
-        del os.environ['CMDB_SESSION_ID']
+    click.echo("Credentials were reset and deleted from env variables")
+    return del_env_credentials()
+
+@main.command()
+@click.argument('query', type=str)
+@click.option('-m', '--mode', default='normal', type=click.Choice(['normal', 'deep', 'auto-deep']))
+@click.pass_context
+def search(ctx, query, mode):
+    ep = IdoitEndpoint(**ctx)
+    response = ep.search(query, mode)
+    click.echo(response)
+
 
 # TODO add command to specify login credentials via file
 
