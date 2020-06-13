@@ -2,7 +2,7 @@ import requests
 import os
 
 from abc import ABC, abstractmethod
-from idoit_api.const import CATEGORY_CONST_MAPPING
+from idoit_api.const import CATEGORY_CONST_MAPPING, LOG_LEVEL_DEBUG
 from idoit_api.mixins import LoggingMixin, PermissionMixin
 from idoit_api.exceptions import InvalidParams, InternalError, MethodNotFound, UnknownError, AuthenticationError
 from functools import partial
@@ -142,10 +142,16 @@ class API(LoggingMixin):
         if self.session_id is None:
             self.login()
 
+        request_content = {
+            "url": self.url,
+            "json": self.build_request_body(method, params),
+            "headers": self._build_request_headers(headers)
+        }
+
+        self.log.debug('Request to be sent: ', request_content)
+
         response = requests.post(
-            url=self.url,
-            json=self.build_request_body(method, params),
-            headers=self._build_request_headers(headers)
+            **request_content
         ).json()
 
         response = self._evaluate_response(response)
