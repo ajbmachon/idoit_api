@@ -122,7 +122,7 @@ class LoggingMixin(object):
     """Provides logging to all classes inheriting from this one"""
 
     def __init__(self, log_level=LOG_LEVEL_INFO,
-                 log_path='{}/{}'.format(LOG_PATH, 'main.log')):
+                 log_path='{}/{}'.format(LOG_PATH, 'main.log'), *args, **kwargs):
         """Setup logging for class
 
         :param log_level: Set the log level
