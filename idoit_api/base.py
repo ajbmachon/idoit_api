@@ -139,6 +139,9 @@ class API(LoggingMixin):
         :rtype: dict
         """
 
+        if self.session_id is None:
+            self.login()
+
         response = requests.post(
             url=self.url,
             json=self.build_request_body(method, params),
@@ -154,6 +157,10 @@ class API(LoggingMixin):
         :param requests:
         :return:
         """
+
+        if self.session_id is None:
+            self.login()
+
         data = []
 
         for rd in request_dicts:
@@ -170,8 +177,7 @@ class API(LoggingMixin):
             except (InvalidParams, InternalError, MethodNotFound, UnknownError, AuthenticationError) as err:
                 print(err)
 
-
-        return
+        return results
 
 
     def build_request_body(self, method, params=None):
