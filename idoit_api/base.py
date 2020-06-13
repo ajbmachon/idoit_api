@@ -140,6 +140,10 @@ class API(LoggingMixin):
         :rtype: dict
         """
         self.log.debug('parameters passed to request - method: %s, params: %s, headers: %s', method, params, headers)
+
+        if not self.session_id:
+            self.login()
+
         request_content = {
             "url": self.url,
             "json": self.build_request_body(method, params),
@@ -201,8 +205,8 @@ class API(LoggingMixin):
 
         h = headers or {}
         h['content-type'] = 'application/json'
-        if self._session_id:
-            h["X-RPC-Auth-Session"] = self._session_id
+        if self.session_id:
+            h["X-RPC-Auth-Session"] = self.session_id
         return h
 
     def _evaluate_response(self, response):
