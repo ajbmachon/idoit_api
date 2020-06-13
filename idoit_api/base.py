@@ -117,6 +117,7 @@ class API(LoggingMixin):
             "idoit.login",
             headers=headers
         )
+        self.log.debug('result of login: ' % result)
         self.session_id = result["session-id"]
         return True
 
@@ -138,10 +139,7 @@ class API(LoggingMixin):
         :return: dictionary with results from CMDB JSON API
         :rtype: dict
         """
-
-        if self.session_id is None:
-            self.login()
-
+        self.log.debug('parameters passed to request - method: %s, params: %s, headers: %s', method, params, headers)
         request_content = {
             "url": self.url,
             "json": self.build_request_body(method, params),
@@ -149,7 +147,7 @@ class API(LoggingMixin):
         }
 
         self.log.debug('Request to be sent: %s', request_content)
-        self.log.info('Request to be sent: %s', request_content)
+        # self.log.info('Request to be sent: %s', request_content)
 
         response = requests.post(
             **request_content
@@ -165,8 +163,6 @@ class API(LoggingMixin):
         :return:
         """
 
-        if self.session_id is None:
-            self.login()
 
         data = []
 
@@ -202,12 +198,12 @@ class API(LoggingMixin):
         }
 
     def _build_request_headers(self, headers=None):
-        if self.session_id is None:
-            self.login()
 
         h = headers or {}
         h['content-type'] = 'application/json'
-        h["X-RPC-Auth-Session"] = self._session_id
+        if self._session_id:
+            h["X-RPC-Auth-Session"] = self._session_id
+        return h
 
     def _evaluate_response(self, response):
         if "error" in response:

@@ -7,7 +7,7 @@ from idoit_api.const import LOG_LEVEL_INFO, LOG_LEVEL_WARNING, LOG_LEVEL_ERROR, 
 from idoit_api.__about__ import __version__
 from idoit_api.requests import IdoitEndpoint
 from idoit_api.base import API
-from idoit_api.utils import del_env_credentials, cli_login_prompt
+from idoit_api.utils import del_env_credentials, cli_login_prompt, parse_env_file_to_vars
 
 
 @click.group()
@@ -15,11 +15,14 @@ from idoit_api.utils import del_env_credentials, cli_login_prompt
 @click.option('-l', '--log-level', default=LOG_LEVEL_INFO, show_default=True)
 @click.option('-P', '--permission-level', default=1, show_default=True,
               help="Level of rights for API Operations. Higher level gives more permissions")
+@click.option('--env-file', type=str)
 @click.pass_context
-def main(ctx, permission_level, log_level, debug):
+def main(ctx, permission_level, log_level, debug, env_file):
     """Console script for idoit_api"""
 
-    if not os.environ.get('CMDB_SESSION_ID'):
+    if env_file:
+        parse_env_file_to_vars(env_file)
+    elif not os.environ.get('CMDB_SESSION_ID'):
         cli_login_prompt()
 
     click.echo('Version: {}'.format(__version__))
@@ -39,8 +42,9 @@ def main(ctx, permission_level, log_level, debug):
 @click.option('-u', '--username', prompt=True, envvar='CMDB_USER')
 @click.option('-p', '--password', prompt=True, hide_input=True, envvar='CMDB_PASS')
 @click.option('-k', '--api-key', prompt=True, hide_input=True, envvar='CMDB_API_KEY')
-def login(url, username, password, api_key):
-    api = API(url=url, key=api_key, username=username, password=password)
+@click.pass_obj
+def login(obj, url, username, password, api_key):
+    api = API(url=url, key=api_key, username=username, password=password, **obj)
     if api.login():
         click.echo("Successfully authenticated with the API at {}".format(url))
 
