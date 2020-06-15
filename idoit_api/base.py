@@ -242,9 +242,9 @@ class BaseEndpoint(ABC, PermissionMixin, LoggingMixin):
     ENDPOINT = ""
 
     REQUIRED_PARAMS = {
-        'objID': ('create', 'read', 'update', 'delete')
+        'objID': ('read', 'update', 'delete')
     }
-    # Keys need to be tuples here and only be filles if there are mutually exclusive but required parameters
+    # Keys need to be tuples here and only be filed if there are mutually exclusive but required parameters
     REQUIRED_INTERCHANGEABLE_PARAMS = {}
     OPTIONAL_PARAMS = {}
 
@@ -316,6 +316,17 @@ class BaseEndpoint(ABC, PermissionMixin, LoggingMixin):
 
         return method(**kwargs)
 
+    def _build_request_dict_from_obj(self, obj):
+        d = {}
+        for key in self.REQUIRED_PARAMS.keys():
+            d[key] = obj.__dict__.get(key)
+        for keys in self.REQUIRED_INTERCHANGEABLE_PARAMS.keys():
+            for key in keys:
+                d[key] = obj.__dict__.get(key)
+        for key in self.OPTIONAL_PARAMS.keys():
+            d[key] = obj.__dict__.get(key)
+        return d
+
     def _build_request_body(self, **kwargs):
         d = {}
         for k, v in kwargs.items():
@@ -328,33 +339,46 @@ class BaseEndpoint(ABC, PermissionMixin, LoggingMixin):
         return d
 
     @PermissionMixin.check_permission_level(CREATE_ENTRIES, )  # TODO set dry_run_allowed=True after writing  dry run decorator
-    def create(self, **kwargs):
-        print('received the following kwargs: ', kwargs)
+    def _create(self, **kwargs):
         return self._api.request(
             method=self.ENDPOINT + ".create",
             params=self._build_request_body(**kwargs)
         )
 
     @PermissionMixin.check_permission_level(READ_DATA, )
-    def read(self, **kwargs):
+    def _read(self, **kwargs):
         return self._api.request(
             method=self.ENDPOINT + ".read",
             params=self._build_request_body(**kwargs)
         )
 
     @PermissionMixin.check_permission_level(UPDATE_ENTRIES, )
-    def update(self, **kwargs):
+    def _update(self, **kwargs):
         return self._api.request(
             method=self.ENDPOINT + ".update",
             params=self._build_request_body(**kwargs)
         )
 
     @PermissionMixin.check_permission_level(DELETE_ENTRIES, )
-    def delete(self, **kwargs):
+    def _delete(self, **kwargs):
         return self._api.request(
             method=self.ENDPOINT + ".delete",
             params=self._build_request_body(**kwargs)
         )
+
+    def create(self, **kwargs):
+        if 'obj' in kwargs and not isinstance(kwargs.get('obj'), (dict, tuple, list, int, str, float)):
+            return self._create(**self._build_request_dict_from_obj(kwargs.get('obj')))
+        return self._create(**kwargs)
+
+    def read(self, **kwargs):
+        return self._read(**kwargs)
+
+    def update(self, **kwargs):
+        return self._update(**kwargs)
+
+    def delete(self, **kwargs):
+        return self._delete(**kwargs)
 
 
 class MultiResultEndpoint(BaseEndpoint):

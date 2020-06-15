@@ -16,6 +16,31 @@ class IdoitEndpoint(BaseEndpoint):
         data = self.get_version()
         return data.get("type")
 
+    @property
+    def username(self):
+        data = self.get_version()
+        return data.get('login', {}).get('username')
+
+    @property
+    def tenant(self):
+        data = self.get_version()
+        return data.get('login', {}).get('tenant')
+
+    @property
+    def user_id(self):
+        data = self.get_version()
+        return data.get('login', {}).get('userid')
+
+    @property
+    def mail(self):
+        data = self.get_version()
+        return data.get('login', {}).get('mail')
+
+    @property
+    def language(self):
+        data = self.get_version()
+        return data.get('login', {}).get('language')
+
     def get_constants(self):
         return self._api.request("idoit.constants")
 
@@ -23,8 +48,6 @@ class IdoitEndpoint(BaseEndpoint):
         return self._api.request("idoit.version")
 
     def search(self, query, mode=NORMAL_SEARCH):
-        self.log.debug(' ENVENVENVNEV %s %s ', os.environ.get('CMDB_USER'), os.environ.get('CMDB_PASS'))
-        self.log.debug('IN IDOITENDPOINT %s %s %s', self._api.username, self._api.password, self.__class__)
         return self._api.request(
             "idoit.search",
             {"q": query, "mode": mode}
@@ -51,8 +74,10 @@ class CMDBCategoryEndpoint(BaseEndpoint):
         'status': ('read', 'update')
     }
 
-    def __init__(self, api=None, api_params=None, default_read_status=STATUS_NORMAL, **kwargs):
-        super().__init__(api=api, api_params=api_params, **kwargs)
+    def __init__(self, api=None, default_read_status=STATUS_NORMAL, **kwargs):
+        super().__init__(api=api, **kwargs)
 
         self.REQUIRED_PARAMS.update(super().REQUIRED_PARAMS)
         self.default_read_status = default_read_status
+
+
