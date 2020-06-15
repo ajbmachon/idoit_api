@@ -1,7 +1,7 @@
 import logging
 
 from functools import wraps
-from idoit_api.const import LOG_LEVEL_DEBUG, LOG_LEVEL_INFO, LOG_LEVEL_WARNING, LOG_LEVEL_ERROR, LOG_PATH
+from idoit_api.const import *
 
 
 class PermissionException(Exception):
@@ -20,7 +20,7 @@ class PermissionMixin:
     ### Example ##########################################################
     class A(PermissionMixin):
         def __init__(self, required_permission_lvl):
-            self.PERMISSION_LEVEL = required_permission_lvl or self.PERMISSION_LEVEL_1
+            self.PERMISSION_LEVEL = required_permission_lvl or self.READ_DATA
 
         @PermissionMixin.check_permission_level(2)
         def write(self):
@@ -30,13 +30,6 @@ class PermissionMixin:
     a.write()
     ######################################################################
     """
-
-    DRY_RUN = 0
-    PERMISSION_LEVEL_1 = 1
-    PERMISSION_LEVEL_2 = 2
-    PERMISSION_LEVEL_3 = 3
-    PERMISSION_LEVEL_4 = 4
-    PERMISSION_LEVEL_5 = 5
 
     PERMISSION_LEVEL = DRY_RUN
 
@@ -84,7 +77,7 @@ class PermissionMixin:
 
     @staticmethod
     def check_permission_level(required_permission_lvl, dry_run_allowed=False):
-        """This decorator takes an integer or class constant (PERMISSION_LEVEL_1) and checks whether class method
+        """This decorator takes an integer or class constant (READ_DATA) and checks whether class method
         can be executed, by comparing required_permission_lvl to self.PERMISSION_LEVEL
 
         :param dry_run_allowed: Whether method can be run without actual execution aka. changes to any system or data
