@@ -45,6 +45,11 @@ def del_env_credentials():
         del os.environ['CMDB_SESSION_ID']
 
 
-def parse_env_file(filepath):
-    # TODO configparse here
-    pass
+def parse_env_file_to_vars(filepath):
+    config = configparser.ConfigParser()
+    config.read(filepath)
+
+    for section in config.sections():
+        options = config.options(section)
+        for option in options:
+            os.environ[option.upper()] = config.get(section, option)

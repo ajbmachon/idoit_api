@@ -2,7 +2,7 @@ import requests
 import os
 
 from abc import ABC, abstractmethod
-from idoit_api.const import CATEGORY_CONST_MAPPING, LOG_LEVEL_DEBUG
+from idoit_api.const import *
 from idoit_api.mixins import LoggingMixin, PermissionMixin
 from idoit_api.exceptions import InvalidParams, InternalError, MethodNotFound, UnknownError, AuthenticationError
 from functools import partial
@@ -77,10 +77,10 @@ class API(LoggingMixin):
 
         # try to get credentials from environment if none are passed here
         self.key = key or self.key
-        self.session_id = os.environ.get('CMDB_SESSION_ID', "")
+        self.session_id = self.session_id
         self.url = url or self.url
-        self.username = username or self.url
-        self.password = password or self.url
+        self.username = username or self.username
+        self.password = password or self.password
 
         super().__init__(*args, **kwargs)
 
@@ -93,7 +93,7 @@ class API(LoggingMixin):
         :type password: str
         """
 
-        if self._session_id or os.environ.get("CMDB_SESSION_ID"):
+        if self.session_id:
             return True
 
         user = username or self.username
@@ -117,6 +117,7 @@ class API(LoggingMixin):
             "idoit.login",
             headers=headers
         )
+        self.log.debug('result of login: ' % result)
         self.session_id = result["session-id"]
         return True
 
@@ -138,9 +139,9 @@ class API(LoggingMixin):
         :return: dictionary with results from CMDB JSON API
         :rtype: dict
         """
+        self.log.debug('parameters passed to request - method: %s, params: %s, headers: %s', method, params, headers)
 
-        if self.session_id is None:
-            self.login()
+        self.log.debug('API attributes username: %s  key: %s, pw: %s', self.username, self.key, self.password)
 
         request_content = {
             "url": self.url,
@@ -148,7 +149,8 @@ class API(LoggingMixin):
             "headers": self._build_request_headers(headers)
         }
 
-        self.log.debug('Request to be sent: ', request_content)
+        self.log.debug('Request to be sent: %s', request_content)
+        # self.log.info('Request to be sent: %s', request_content)
 
         response = requests.post(
             **request_content
@@ -164,8 +166,6 @@ class API(LoggingMixin):
         :return:
         """
 
-        if self.session_id is None:
-            self.login()
 
         data = []
 
@@ -185,7 +185,6 @@ class API(LoggingMixin):
 
         return results
 
-
     def build_request_body(self, method, params=None):
         if not isinstance(method, str):
             raise AttributeError("Invalid method passed to _build_request_body")
@@ -201,12 +200,16 @@ class API(LoggingMixin):
         }
 
     def _build_request_headers(self, headers=None):
-        if self.session_id is None:
-            self.login()
 
         h = headers or {}
         h['content-type'] = 'application/json'
-        h["X-RPC-Auth-Session"] = self._session_id
+        if self.session_id:
+            h["X-RPC-Auth-Session"] = self.session_id
+        else:
+            self.log.debug('AAAAAAAAA %s %s %s', self.username, self.password, self.__class__)
+            h["X-RPC-Auth-Username"] = self.username
+            h["X-RPC-Auth-Password"] = self.password
+        return h
 
     def _evaluate_response(self, response):
         if "error" in response:
@@ -234,7 +237,7 @@ class API(LoggingMixin):
         return response
 
 
-class BaseEndpoint(ABC, PermissionMixin):
+class BaseEndpoint(ABC, PermissionMixin, LoggingMixin):
     # CMDB API Endpoint should be entered here, like: cmdb.category
     ENDPOINT = ""
 
@@ -249,8 +252,12 @@ class BaseEndpoint(ABC, PermissionMixin):
     SORT_DESCENDING = 'DESC'
 
     def __init__(self, api=None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.log.debug('init of %s args: %s', self.__class__, args)
+        self.log.debug('init of %s kwargs: %s', self.__class__, kwargs)
         if api is None:
-            api = API(*args, **kwargs)
+            api = API(**kwargs)
         self._api = api
         self.PERMISSION_LEVEL = kwargs.get('permission_level', 1)
 
@@ -320,8 +327,7 @@ class BaseEndpoint(ABC, PermissionMixin):
                     continue
         return d
 
-    @PermissionMixin.check_permission_level(
-        PermissionMixin.PERMISSION_LEVEL_3, )  # TODO set dry_run_allowed=True after writing  dry run decorator
+    @PermissionMixin.check_permission_level(CREATE_ENTRIES, )  # TODO set dry_run_allowed=True after writing  dry run decorator
     def create(self, **kwargs):
         print('received the following kwargs: ', kwargs)
         return self._api.request(
@@ -329,21 +335,21 @@ class BaseEndpoint(ABC, PermissionMixin):
             params=self._build_request_body(**kwargs)
         )
 
-    @PermissionMixin.check_permission_level(PermissionMixin.PERMISSION_LEVEL_1, )
+    @PermissionMixin.check_permission_level(READ_DATA, )
     def read(self, **kwargs):
         return self._api.request(
             method=self.ENDPOINT + ".read",
             params=self._build_request_body(**kwargs)
         )
 
-    @PermissionMixin.check_permission_level(PermissionMixin.PERMISSION_LEVEL_4, )
+    @PermissionMixin.check_permission_level(UPDATE_ENTRIES, )
     def update(self, **kwargs):
         return self._api.request(
             method=self.ENDPOINT + ".update",
             params=self._build_request_body(**kwargs)
         )
 
-    @PermissionMixin.check_permission_level(PermissionMixin.PERMISSION_LEVEL_5, )
+    @PermissionMixin.check_permission_level(DELETE_ENTRIES, )
     def delete(self, **kwargs):
         return self._api.request(
             method=self.ENDPOINT + ".delete",
