@@ -2,7 +2,8 @@ import pytest
 import os
 
 import requests_mock
-from idoit_api.base import API, CMDBDocument, BaseEndpoint
+from idoit_api.base import API, BaseEndpoint
+from idoit_api.objects import CMDBDocument
 from idoit_api.const import CATEGORY_CONST_MAPPING
 
 from idoit_api.utils import set_env_credentials, del_env_credentials
