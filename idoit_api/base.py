@@ -281,6 +281,11 @@ class BaseEndpoint(ABC, PermissionMixin, LoggingMixin):
             raise InvalidParams(message="Please specify some parameters for the request")
         if not isinstance(kwargs, dict):
             raise InvalidParams(message="Parameters for the API call need to be a dictionary")
+        if 'obj' in kwargs and issubclass(kwargs.get('obj').__class__, RestObject):
+            kwargs.update(self._build_request_dict_from_obj(kwargs.get('obj')))
+
+        self.log.debug('Parameters passed to _validate_request: %s', kwargs)
+        print('Parameters passed to _validate_request: ', kwargs)
 
         for param, rules in self.REQUIRED_PARAMS.items():
             if isinstance(rules, tuple):
@@ -288,11 +293,11 @@ class BaseEndpoint(ABC, PermissionMixin, LoggingMixin):
                 for method_name in rules:
                     if method.__name__ is not method_name:
                         continue
-                    if param not in kwargs:
+                    if param not in kwargs or kwargs.get(param, None) is None:
                         raise InvalidParams(message="Required parameter: {} is missing!".format(param))
             # rule is applicable to all API methods
             elif rules is True:
-                if param not in kwargs:
+                if param not in kwargs or kwargs.get(param, None) is None:
                     raise InvalidParams(message="Required parameter: {} is missing!".format(param))
             else:
                 raise AttributeError("Your validation dictionary is malformed, values need to be a tuple or True")
@@ -306,7 +311,7 @@ class BaseEndpoint(ABC, PermissionMixin, LoggingMixin):
 
                         found_key = False
                         for key in params:
-                            if key in kwargs:
+                            if key in kwargs and kwargs.get(key, None) is not None:
                                 found_key = True
                         if not found_key:
                             raise InvalidParams(
@@ -314,7 +319,7 @@ class BaseEndpoint(ABC, PermissionMixin, LoggingMixin):
                                     params)
                             )
 
-        return method(**kwargs)
+        return method(**{k: v for k, v in kwargs.items() if v is not None})
 
     def _build_request_dict_from_obj(self, obj):
         d = {}
@@ -367,8 +372,6 @@ class BaseEndpoint(ABC, PermissionMixin, LoggingMixin):
         )
 
     def create(self, **kwargs):
-        if 'obj' in kwargs and not isinstance(kwargs.get('obj'), (dict, tuple, list, int, str, float)):
-            return self._create(**self._build_request_dict_from_obj(kwargs.get('obj')))
         return self._create(**kwargs)
 
     def read(self, **kwargs):

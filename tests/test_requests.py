@@ -4,6 +4,7 @@ import requests_mock
 from idoit_api.requests import IdoitEndpoint, CMDBCategoryEndpoint
 from idoit_api.exceptions import InvalidParams
 from idoit_api.base import API
+from idoit_api.objects import CMDBCategoryEntry
 from tests.test_base import simple_param_dict
 
 
@@ -14,7 +15,7 @@ def idoit_ep():
 
 @pytest.fixture
 def category_ep():
-    yield CMDBCategoryEndpoint(api=API(url="https://cmdb.example.de", log_level=10), permission_level=30)
+    yield CMDBCategoryEndpoint(api=API(url="https://cmdb.example.de", log_level=10), permission_level=50)
 
 
 class TestIdoitEndpoint:
@@ -63,6 +64,7 @@ class TestCMDBCategoryEndpoint:
         with requests_mock.Mocker() as m:
             result = {'entry': 5419, 'message': 'Category entry successfully saved', 'success': True}
             adapter = m.post(url="https://cmdb.example.de", json={"result": result})
+            print('SIMPLE DICT: ',simple_param_dict)
             response = category_ep.create(**simple_param_dict)
 
             assert adapter.call_count == 1
@@ -76,4 +78,14 @@ class TestCMDBCategoryEndpoint:
                 'params': {'apikey': '', 'category': 'C__CATS__APPLICATION', 'objID': 1455}
             }
 
+            entry = CMDBCategoryEntry(simple_param_dict)
+            response = category_ep.update(obj=entry)
 
+            assert adapter.call_count == 2
+            assert adapter.last_request.json() == {
+                'id': 0,
+                'jsonrpc': '2.0',
+                'method': 'cmdb.category.update',
+                # TODO apikey is emtpty, find out why
+                'params': {'apikey': '', 'category': 'C__CATS__APPLICATION', 'objID': 1455}
+            }

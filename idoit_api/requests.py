@@ -80,4 +80,3 @@ class CMDBCategoryEndpoint(BaseEndpoint):
         self.REQUIRED_PARAMS.update(super().REQUIRED_PARAMS)
         self.default_read_status = default_read_status
 
-

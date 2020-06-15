@@ -39,3 +39,8 @@ class CMDBRelation(CMDBDocument):
 class CMDBCustomType(CMDBDocument):
     """Represents a custom object from the CMDB"""
     pass
+
+
+class CMDBCategoryEntry(CMDBDocument):
+    """Represents an entry in a Category"""
+    pass
