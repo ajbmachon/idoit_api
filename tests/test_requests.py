@@ -17,7 +17,7 @@ def category_ep():
     yield CMDBCategoryEndpoint(api=API(url="https://cmdb.example.de", log_level=10), permission_level=30)
 
 
-class TestIdoitRequest:
+class TestIdoitEndpoint:
 
     def test_init(self, idoit_ep):
         assert isinstance(idoit_ep, IdoitEndpoint)
