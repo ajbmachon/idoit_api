@@ -5,7 +5,7 @@ import os
 
 from idoit_api.const import LOG_LEVEL_INFO, LOG_LEVEL_WARNING, LOG_LEVEL_ERROR, LOG_LEVEL_DEBUG
 from idoit_api.__about__ import __version__
-from idoit_api.requests import IdoitEndpoint
+from idoit_api.objects import IdoitEndpoint
 from idoit_api.base import API
 from idoit_api.utils import del_env_credentials, cli_login_prompt, parse_env_file_to_vars
 

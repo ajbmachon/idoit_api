@@ -1,8 +1,9 @@
 import requests
 import os
 
-from abc import ABC, abstractmethod
+from abc import ABC
 from idoit_api.const import *
+from idoit_api.const import CATEGORY_CONST_MAPPING
 from idoit_api.mixins import LoggingMixin, PermissionMixin
 from idoit_api.exceptions import InvalidParams, InternalError, MethodNotFound, UnknownError, AuthenticationError
 from functools import partial
@@ -162,13 +163,11 @@ class API(LoggingMixin):
     def batch_request(self, request_dicts):
         """Performs multiple requests to API at once
 
-        :param requests:
+        :param request_dicts:
         :return:
         """
 
-
         data = []
-
         for rd in request_dicts:
             if rd.get('method') and rd.get('params') and rd.get('apikey') and rd.get('jsonrpc') and rd.get('id'):
                 data.append(rd)
@@ -187,7 +186,7 @@ class API(LoggingMixin):
 
     def build_request_body(self, method, params=None):
         if not isinstance(method, str):
-            raise AttributeError("Invalid method passed to _build_request_body")
+            raise AttributeError("Invalid api method passed to _build_request_body")
 
         params = params or {}
         params["apikey"] = self.key
@@ -206,7 +205,6 @@ class API(LoggingMixin):
         if self.session_id:
             h["X-RPC-Auth-Session"] = self.session_id
         else:
-            self.log.debug('AAAAAAAAA %s %s %s', self.username, self.password, self.__class__)
             h["X-RPC-Auth-Username"] = self.username
             h["X-RPC-Auth-Password"] = self.password
         return h
@@ -238,12 +236,31 @@ class API(LoggingMixin):
 
 
 class BaseEndpoint(ABC, PermissionMixin, LoggingMixin):
+    """Base class for all Endpoints
+
+    Subclasses need to define the parameters their CRUD operations expect and their API method.
+    This is done by filling the following class constants, which are also used to document the
+    parameters of API call methods and the Endpoint.
+
+    'ENDPOINT'                        -> holds the API method.
+    'REQUIRED_PARAMS'                 -> Keys are required parameters for the request, values is a tuple of which API
+                                         call method they apply to. Or 'True' in case they apply to all of them.
+    'REQUIRED_INTERCHANGEABLE_PARAMS' -> Keys are a tuple of parameters for the request, of which are required if the
+                                         others are missing. values are like in REQUIRES_PARAMS.
+    'OPTIONAL_PARAMS'                 -> Keys are API call methods, values is a tuple of optional parameters, these are
+                                         not checked as of now, but used for documentation purposes.
+
+    Example:
+        ENDPOINT = "cmdb.category"
+        REQUIRED_PARAMS = {'objID': ('read', 'update', 'delete'), 'category': True}
+        REQUIRED_INTERCHANGEABLE_PARAMS = {('category', 'catgID', 'catsID): True}
+        OPTIONAL_PARAMS = {'update': ('title', 'version', 'assignments') }
+
+    """
     # CMDB API Endpoint should be entered here, like: cmdb.category
     ENDPOINT = ""
-
-    REQUIRED_PARAMS = {
-        'objID': ('read', 'update', 'delete')
-    }
+    # The key is the name of required attribute
+    REQUIRED_PARAMS = {'objID': ('read', 'update', 'delete')}
     # Keys need to be tuples here and only be filed if there are mutually exclusive but required parameters
     REQUIRED_INTERCHANGEABLE_PARAMS = {}
     OPTIONAL_PARAMS = {}
@@ -281,7 +298,7 @@ class BaseEndpoint(ABC, PermissionMixin, LoggingMixin):
             raise InvalidParams(message="Please specify some parameters for the request")
         if not isinstance(kwargs, dict):
             raise InvalidParams(message="Parameters for the API call need to be a dictionary")
-        if 'obj' in kwargs and issubclass(kwargs.get('obj').__class__, RestObject):
+        if 'obj' in kwargs and issubclass(kwargs.get('obj').__class__, CMDBDocument):
             kwargs.update(self._build_request_dict_from_obj(kwargs.get('obj')))
 
         self.log.debug('Parameters passed to _validate_request: %s', kwargs)
@@ -389,16 +406,17 @@ class MultiResultEndpoint(BaseEndpoint):
     pass
 
 
-class RestObject(LoggingMixin, ABC):
+class CMDBDocument(LoggingMixin):
+    CATEGORY_MAP = CATEGORY_CONST_MAPPING
 
-    def __init__(self, data):
-        self._raw_data = data
-        # populate attributes from json dict
-        self.populate()
+    def __init__(self, data, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._raw_data = data.copy()
 
-        super().__init__()
+        self._populate(data)
+        self._populate_custom(data)
 
-    def populate(self, data=None):
+    def _populate(self, data=None):
         """Set object values from data dict
 
         :param data: dictionary of json data from API
@@ -410,10 +428,10 @@ class RestObject(LoggingMixin, ABC):
             raise AttributeError('cannot set attributes, param data and attribute self._raw_data were empty ')
 
         for k, v in data.items():
+            if k in self.CATEGORY_MAP:
+                k = self.CATEGORY_MAP.get(k)
             self.__dict__[k] = v
         self._populate_custom()
 
-    @abstractmethod
     def _populate_custom(self, data=None):
-        """Implement this method in inherited class, to add object specific attributes"""
         pass

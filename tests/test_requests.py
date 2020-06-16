@@ -1,7 +1,7 @@
 import pytest
 import requests_mock
 
-from idoit_api.requests import IdoitEndpoint, CMDBCategoryEndpoint
+from idoit_api.objects import IdoitEndpoint, CMDBCategoryEndpoint
 from idoit_api.exceptions import InvalidParams
 from idoit_api.base import API
 from idoit_api.objects import CMDBCategoryEntry
