@@ -1,49 +1,67 @@
 from idoit_api.base import BaseEndpoint, MultiResultEndpoint, CMDBDocument
-from idoit_api.const import NORMAL_SEARCH
+from idoit_api.const import *
+
+
+# ##################################################################### #
+# ############################## Endpoints ############################ #
+# ##################################################################### #
 
 
 class IdoitEndpoint(BaseEndpoint):
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._version_data = None
+        self._constants_data = None
+
     @property
     def version(self):
-        data = self.get_version()
-        return data.get("version")
+        if not self._version_data:
+            self.get_version()
+        return self._version_data.get("version")
 
     @property
     def version_type(self):
-        data = self.get_version()
-        return data.get("type")
+        if not self._version_data:
+            self.get_version()
+        return self._version_data.get("type")
 
     @property
     def username(self):
-        data = self.get_version()
-        return data.get('login', {}).get('username')
+        if not self._version_data:
+            self.get_version()
+        return self._version_data.get('login', {}).get('username')
 
     @property
     def tenant(self):
         data = self.get_version()
-        return data.get('login', {}).get('tenant')
+        return self._version_data.get('login', {}).get('tenant')
 
     @property
     def user_id(self):
-        data = self.get_version()
-        return data.get('login', {}).get('userid')
+        if not self._version_data:
+            self.get_version()
+        return self._version_data.get('login', {}).get('userid')
 
     @property
     def mail(self):
-        data = self.get_version()
-        return data.get('login', {}).get('mail')
+        if not self._version_data:
+            self.get_version()
+        return self._version_data.get('login', {}).get('mail')
 
     @property
     def language(self):
-        data = self.get_version()
-        return data.get('login', {}).get('language')
+        if not self._version_data:
+            self.get_version()
+        return self._version_data.get('login', {}).get('language')
 
     def get_constants(self):
-        return self._api.request("idoit.constants")
+        self._constants_data = self._api.request("idoit.constants")
+        return self._constants_data
 
     def get_version(self):
-        return self._api.request("idoit.version")
+        self._version_data = self._api.request("idoit.version")
+        return self._version_data
 
     def search(self, query, mode=NORMAL_SEARCH):
         return self._api.request(
@@ -60,10 +78,6 @@ class CMDBObjectsEndpoint(MultiResultEndpoint):
 class CMDBCategoryEndpoint(BaseEndpoint):
     ENDPOINT = "cmdb.category"
 
-    STATUS_NORMAL = "C__RECORD_STATUS__NORMAL"
-    STATUS_ARCHIVED = "C__RECORD_STATUS__ARCHIVED"
-    STATUS_DELETED = "C__RECORD_STATUS__DELETED"
-
     REQUIRED_PARAMS = {}
     REQUIRED_INTERCHANGEABLE_PARAMS = {
         ('category', 'catg_id', 'cats_id'): ('create', 'read', 'update')
@@ -72,6 +86,10 @@ class CMDBCategoryEndpoint(BaseEndpoint):
         'status': ('read', 'update')
     }
 
+    STATUS_NORMAL = "C__RECORD_STATUS__NORMAL"
+    STATUS_ARCHIVED = "C__RECORD_STATUS__ARCHIVED"
+    STATUS_DELETED = "C__RECORD_STATUS__DELETED"
+
     def __init__(self, api=None, default_read_status=STATUS_NORMAL, **kwargs):
         super().__init__(api=api, **kwargs)
 
@@ -79,9 +97,9 @@ class CMDBCategoryEndpoint(BaseEndpoint):
         self.default_read_status = default_read_status
 
 
-#######################################################################
-############################### OBJECTS ###############################
-#######################################################################
+# ##################################################################### #
+# ############################ CMDB TYPES ############################# #
+# ##################################################################### #
 
 
 class CMDBSoftwareAssignment(CMDBDocument):
