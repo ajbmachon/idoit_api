@@ -34,7 +34,8 @@ class IdoitEndpoint(BaseEndpoint):
 
     @property
     def tenant(self):
-        data = self.get_version()
+        if not self._version_data:
+            self.get_version()
         return self._version_data.get('login', {}).get('tenant')
 
     @property
