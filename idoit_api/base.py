@@ -2,11 +2,12 @@ import requests
 import os
 
 from abc import ABC
+from functools import partial
+from itertools import chain
 from idoit_api.const import *
 from idoit_api.const import CATEGORY_CONST_MAPPING
 from idoit_api.mixins import LoggingMixin, PermissionMixin
 from idoit_api.exceptions import InvalidParams, InternalError, MethodNotFound, UnknownError, AuthenticationError
-from functools import partial
 
 
 class API(LoggingMixin):
@@ -244,26 +245,27 @@ class BaseEndpoint(ABC, PermissionMixin, LoggingMixin):
 
     'ENDPOINT'                        -> holds the API method.
     'REQUIRED_PARAMS'                 -> Keys are required parameters for the request, values is a tuple of which API
-                                         call method they apply to. Or 'True' in case they apply to all of them.
+                                         method they apply to. Or 'True' in case they apply to all of them.
     'REQUIRED_INTERCHANGEABLE_PARAMS' -> Keys are a tuple of parameters for the request, of which are required if the
                                          others are missing. values are like in REQUIRES_PARAMS.
     'OPTIONAL_PARAMS'                 -> Keys are API call methods, values is a tuple of optional parameters, these are
                                          not checked as of now, but used for documentation purposes.
+    'API_METHODS'                     -> Method names of all methods that interact with the idoit JSON-RPC API
 
     Example:
         ENDPOINT = "cmdb.category"
         REQUIRED_PARAMS = {'objID': ('read', 'update', 'delete'), 'category': True}
-        REQUIRED_INTERCHANGEABLE_PARAMS = {('category', 'catgID', 'catsID): True}
+        REQUIRED_INTERCHANGEABLE_PARAMS = {('category', 'catgID', 'catsID'): True}
         OPTIONAL_PARAMS = {'update': ('title', 'version', 'assignments') }
+        API_METHODS = ('create', 'read', 'update', 'delete', 'save', 'batch_update')
 
     """
-    # CMDB API Endpoint should be entered here, like: cmdb.category
+
     ENDPOINT = ""
-    # The key is the name of required attribute
     REQUIRED_PARAMS = {'objID': ('read', 'update', 'delete')}
-    # Keys need to be tuples here and only be filed if there are mutually exclusive but required parameters
     REQUIRED_INTERCHANGEABLE_PARAMS = {}
     OPTIONAL_PARAMS = {}
+    API_METHODS = ('create', 'read', 'update', 'delete')
 
     SORT_ASCENDING = 'ASC'
     SORT_DESCENDING = 'DESC'
@@ -271,15 +273,36 @@ class BaseEndpoint(ABC, PermissionMixin, LoggingMixin):
     def __init__(self, api=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.log.debug('init of %s args: %s', self.__class__, args)
-        self.log.debug('init of %s kwargs: %s', self.__class__, kwargs)
+        self.log.debug('Created Endpoint: %s', self.__class__.__name__)
+
         if api is None:
             api = API(**kwargs)
         self._api = api
         self.PERMISSION_LEVEL = kwargs.get('permission_level', 1)
 
+    def __str__(self):
+        s = """{class_name}
+
+        API METHOD TARGET: {endpoint}
+
+        API METHOD SIGNATURES:
+        """.format(
+            class_name=self.__class__,
+            endpoint=self.ENDPOINT
+        )
+
+        for method, pd in self._gen_api_method_signature().items():
+            s = """{s}
+            {method}()
+              REQUIRED        : {req}
+              INTERCHANGEABLE : {intc}
+              OPTIONAL        : {opt}
+            """.format(s=s, method=method, req=pd.get('required'),
+                       intc=pd.get('interchangeable'), opt=pd.get('optional'))
+        return s
+
     def __getattribute__(self, item):
-        if item in ('create', 'read', 'update', 'delete'):
+        if item in ('create', 'read', 'update', 'delete', 'save', 'batch_update'):
             return partial(self._validate_request, method=object.__getattribute__(self, item))
         return object.__getattribute__(self, item)
 
@@ -360,7 +383,51 @@ class BaseEndpoint(ABC, PermissionMixin, LoggingMixin):
                     continue
         return d
 
-    @PermissionMixin.check_permission_level(CREATE_ENTRIES, )  # TODO set dry_run_allowed=True after writing  dry run decorator
+    def _gen_api_method_signature(self):
+        """Maps all API methods to their parameters
+
+        :return: Dict of dicts, keys are methods names, values are dicts which specify parameters
+        :rtype: dict
+        """
+
+        methods = {}
+        for m in self.API_METHODS:
+            methods[m] = {
+                'required': [],
+                'interchangeable': [],
+                'optional': []
+            }
+        # add all required params
+        for param, ms in self.REQUIRED_PARAMS.items():
+            if isinstance(ms, bool):
+                for val in methods.values():
+                    m_req = val.get('required', [])
+                    if param not in m_req:
+                        m_req.append(param)
+            else:
+                for m in ms:
+                    m_req = methods.get(m, {}).get('required', [])
+                    if param not in m_req:
+                        m_req.append(param)
+        # add all params of which only one in the set must be present
+        for params, ms in self.REQUIRED_INTERCHANGEABLE_PARAMS.items():
+            if isinstance(ms, bool):
+                for val in methods.values():
+                    m_req_i = val.get('interchangeable', [])
+                    m_req_i.extend([p for p in params if p not in m_req_i])
+            else:
+                for m in ms:
+                    m_req_i = methods.get(m, {}).get('interchangeable', [])
+                    m_req_i.extend([p for p in params if p not in m_req_i])
+        # add all optional params
+        for m, params in self.OPTIONAL_PARAMS.items():
+            m_opt = methods.get(m, {}).get('optional', [])
+            m_opt.extend([p for p in params if p != True and p not in m_opt])
+
+        return methods
+
+    @PermissionMixin.check_permission_level(
+        CREATE_ENTRIES, )  # TODO set dry_run_allowed=True after writing  dry run decorator
     def _create(self, **kwargs):
         return self._api.request(
             method=self.ENDPOINT + ".create",
@@ -378,6 +445,13 @@ class BaseEndpoint(ABC, PermissionMixin, LoggingMixin):
     def _update(self, **kwargs):
         return self._api.request(
             method=self.ENDPOINT + ".update",
+            params=self._build_request_body(**kwargs)
+        )
+
+    @PermissionMixin.check_permission_level(UPDATE_ENTRIES, )
+    def _save(self, **kwargs):
+        return self._api.request(
+            method=self.ENDPOINT + ".save",
             params=self._build_request_body(**kwargs)
         )
 
@@ -416,6 +490,9 @@ class CMDBDocument(LoggingMixin):
         self._populate(data)
         self._populate_custom(data)
 
+    def __repr__(self):
+        return "{}({})".format(self.__class__.__name__, self._raw_data)
+
     def _populate(self, data=None):
         """Set object values from data dict
 
@@ -428,8 +505,10 @@ class CMDBDocument(LoggingMixin):
             raise AttributeError('cannot set attributes, param data and attribute self._raw_data were empty ')
 
         for k, v in data.items():
-            if k in self.CATEGORY_MAP:
-                k = self.CATEGORY_MAP.get(k)
+            # TODO move this into subclass and let this class assign all values. This is an entry. Other classes will start by building categories and filling them with entries
+            # if k in self.CATEGORY_MAP:
+            #     k = self.CATEGORY_MAP.get(k)
+            # self.__dict__[k] = v
             self.__dict__[k] = v
         self._populate_custom()
 

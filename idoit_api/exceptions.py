@@ -1,8 +1,4 @@
 class APIException(Exception):
-    pass
-
-
-class JSONRPC(APIException):
     code = None
     code_min = None
     code_max = None
@@ -10,7 +6,7 @@ class JSONRPC(APIException):
     meaning = ""
 
     def __init__(self, data=None, raw_code=None, message=None):
-        APIException.__init__(self)
+        Exception.__init__(self)
         self.data = data
         self.raw_code = raw_code
         if message:
@@ -32,31 +28,31 @@ class JSONRPC(APIException):
         )
 
 
-class InvalidParams(JSONRPC):
+class InvalidParams(APIException):
     code = -32602
     message = "Invalid params"
     meaning = "Invalid method parameter(s)."
 
 
-class InternalError(JSONRPC):
+class InternalError(APIException):
     code = -32603
     message = "Internal error"
     meaning = "Internal JSON-RPC error."
 
 
-class MethodNotFound(JSONRPC):
+class MethodNotFound(APIException):
     code = -32601
     message = "Method not found"
     meaning = "The method does not exist / is not available."
 
 
-class AuthenticationError(JSONRPC):
+class AuthenticationError(APIException):
     code = -32604
     message = "Authentication error"
     meaning = "There was a problem with Authenticating your account"
 
 
-class UnknownError(JSONRPC):
+class UnknownError(APIException):
     code = None
     message = "Unknown error"
     meaning = "An unknown error occured"

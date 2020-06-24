@@ -3,9 +3,22 @@ import requests_mock
 
 from idoit_api.objects import IdoitEndpoint, CMDBCategoryEndpoint
 from idoit_api.exceptions import InvalidParams
-from idoit_api.base import API
+from idoit_api.base import API, BaseEndpoint
 from idoit_api.objects import CMDBCategoryEntry
 from tests.test_base import simple_param_dict
+
+
+# this is only for testing the __str__ method, as the real Endpoint classes will be subject to a lot of changes
+class StableTestEndpoint(BaseEndpoint):
+    ENDPOINT = "cmdb.fake"
+    REQUIRED_PARAMS = {'objID': ('read', 'update', 'delete')}
+    REQUIRED_INTERCHANGEABLE_PARAMS = {
+        ('category', 'catg_id', 'cats_id'): ('create', 'read', 'update')
+    }
+    OPTIONAL_PARAMS = {
+        'status': ('read', 'update')
+    }
+    API_METHODS = ('create', 'read', 'update', 'delete')
 
 
 @pytest.fixture
@@ -43,6 +56,36 @@ class TestCMDBCategoryEndpoint:
 
     def test_init(self, category_ep):
         assert isinstance(category_ep, CMDBCategoryEndpoint)
+
+    def test_str(self, ):
+        ep = StableTestEndpoint(api=API(url="https://cmdb.example.de", log_level=10), permission_level=50)
+        print(ep)
+        assert ep.__str__().split() == """<class 'tests.test_objects.StableTestEndpoint'>
+
+        API METHOD TARGET: cmdb.fake
+
+        API METHOD SIGNATURES:
+
+            create()
+              REQUIRED        : []
+              INTERCHANGEABLE : ['category', 'catg_id', 'cats_id']
+              OPTIONAL        : []
+
+            read()
+              REQUIRED        : ['objID']
+              INTERCHANGEABLE : ['category', 'catg_id', 'cats_id']
+              OPTIONAL        : []
+
+            update()
+              REQUIRED        : ['objID']
+              INTERCHANGEABLE : ['category', 'catg_id', 'cats_id']
+              OPTIONAL        : []
+
+            delete()
+              REQUIRED        : ['objID']
+              INTERCHANGEABLE : []
+              OPTIONAL        : []
+""".split()
 
     def test_validate_request(self, simple_param_dict, category_ep):
 
@@ -89,3 +132,6 @@ class TestCMDBCategoryEndpoint:
                 # TODO apikey is emtpty, find out why
                 'params': {'apikey': '', 'category': 'C__CATS__APPLICATION', 'objID': 1455}
             }
+
+
+

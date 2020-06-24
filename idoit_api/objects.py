@@ -93,6 +93,7 @@ class CMDBCategoryEndpoint(BaseEndpoint):
     def __init__(self, api=None, default_read_status=STATUS_NORMAL, **kwargs):
         super().__init__(api=api, **kwargs)
 
+        # Get Parameters from super class BaseEndpoint
         self.REQUIRED_PARAMS.update(super().REQUIRED_PARAMS)
         self.default_read_status = default_read_status
 
