@@ -104,21 +104,21 @@ class CMDBCategoryEndpoint(BaseEndpoint):
 # ##################################################################### #
 
 
-class CMDBSoftwareAssignment(CMDBDocument):
+class CMDBSoftwareAssignment():
     """Represents a software assignment"""
     pass
 
 
-class CMDBRelation(CMDBDocument):
+class CMDBRelation():
     """Represents a relation from the CMDB"""
     pass
 
 
-class CMDBCustomType(CMDBDocument):
+class CMDBCustomType():
     """Represents a custom object from the CMDB"""
     pass
 
 
-class CMDBCategoryEntry(CMDBDocument):
+class CMDBCategoryEntry():
     """Represents an entry in a Category"""
     pass

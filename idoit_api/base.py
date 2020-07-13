@@ -3,7 +3,9 @@ import os
 
 from abc import ABC
 from functools import partial
-from itertools import chain
+
+from autoslot import SlotsMeta
+
 from idoit_api.const import *
 from idoit_api.const import CATEGORY_CONST_MAPPING
 from idoit_api.mixins import LoggingMixin, PermissionMixin
@@ -480,8 +482,7 @@ class MultiResultEndpoint(BaseEndpoint):
     pass
 
 
-class CMDBDocument(LoggingMixin):
-    CATEGORY_MAP = CATEGORY_CONST_MAPPING
+class CMDBDocument():
 
     def __init__(self, data, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -514,3 +515,79 @@ class CMDBDocument(LoggingMixin):
 
     def _populate_custom(self, data=None):
         pass
+
+
+class CMDBObjectTypeGroup:
+    pass
+
+
+class CMDBObject(metaclass=SlotsMeta):
+    """Through its metaclass CMDBObject converts attributes defined in __init__() to the __slots__ attribute
+
+    This is to save memory for the thousands of object that will be created from large requests.
+    It can be subclassed like below. All subclasses should call super().__init__(title=title).
+
+
+    Example:
+         class Plugin(CMDBObject):
+             def __init__(self, title, plugin_id):
+                 self.plugin_id = plugin_id
+                 super().__init__(title=title)
+
+         class UIPlugin(Plugin):
+             def __init__(self, title, plugin_id, template='default_template'):
+                 self.template = template
+                 super().__init__(title=title, plugin_id=plugin_id)
+    """
+
+    def __init__(self, title):
+        """
+        :param title: Object Title - The title is documented as an attribute in the "General" category.
+                      This attribute is synonymously also called "Name" or "Object link".
+        :type title: str
+        """
+        self.title = title
+    pass
+
+
+class CMDBCategory:
+    pass
+
+
+class CMDBAttribute:
+    """
+    TODO validation for different types of fields
+        - single-line
+        - multi-line
+        - date field
+        - html editor
+        - FIND OUT THE OTHER RELEVANT ONES
+    """
+
+    def __init__(self, mandatory=False, custom_validator=False):
+        pass
+    pass
+
+class CMDBObjectType(LoggingMixin):
+    CATEGORY_MAP = CATEGORY_CONST_MAPPING
+
+    def __init__(self, data, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._raw_data = data.copy()
+        self._populate_categories(data)
+
+    def _populate_categories(self, data=None):
+        """Set object values from data dict
+
+        :param data: dictionary of json data from API
+        :type data: dict
+        """
+        data = data or self._raw_data
+
+        if not data:
+            raise AttributeError('cannot set attributes, param data and attribute self._raw_data were empty ')
+
+        for k, v in data.items():
+            if k in self.CATEGORY_MAP:
+                k = self.CATEGORY_MAP.get(k)
+            self.__dict__[k] = v
